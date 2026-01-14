@@ -1,80 +1,666 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hello, Deno</title>
-  <link rel="preload" href="https://demo-styles.deno.deno.net/fonts/Moranga-Regular.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="https://demo-styles.deno.deno.net/fonts/Moranga-Medium.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="https://demo-styles.deno.deno.net/fonts/Recursive_Variable.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="https://demo-styles.deno.deno.net/styles.css">
-  <style>
-    img {
-      display: inline-block;
-      vertical-align: middle;
-    }
-  </style>
-</head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>艺术风格</title>
+    <style>
+        :root {
+            /* 动态主题变量 */
+            --primary-color: #888;
+            --glow-color: rgba(136, 136, 136, 0.3);
+            --bg-color: #0f0f11;
+            --sidebar-bg: #161618;
+            --card-bg: #1e1e20;
+            --text-main: #ffffff;
+            --text-sec: #888888;
+        }
 
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background-color 0.5s ease;
+        }
+
+        /* --- Header --- */
+        header {
+            height: 60px;
+            background: rgba(15, 15, 17, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            z-index: 20;
+        }
+        h1 { font-size: 1.1rem; letter-spacing: 1px; font-weight: 600; text-transform: uppercase; }
+        .subtitle { font-size: 0.75rem; color: var(--text-sec); }
+
+        /* --- Layout --- */
+        .container { display: flex; flex: 1; overflow: hidden; }
+
+        /* --- Sidebar --- */
+        aside {
+            width: 300px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: width 0.3s ease;
+        }
+
+        .search-area { padding: 1rem; border-bottom: 1px solid #333; }
+
+        .input-search {
+            width: 100%;
+            background: #000;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .input-search:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px var(--glow-color);
+        }
+
+        .list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+        .list-container::-webkit-scrollbar { width: 4px; }
+        .list-container::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+
+        .style-item {
+            padding: 10px 12px;
+            margin-bottom: 2px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #aaa;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .style-item:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .style-item.active {
+            background: rgba(255,255,255,0.08);
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        /* --- Main Stage --- */
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 2rem;
+            background: radial-gradient(circle at 50% 50%, #222 0%, #111 100%);
+        }
+
+        /* Background Animation */
+        #bg-canvas { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+
+        /* --- The Card --- */
+        .card-stage {
+            width: 100%;
+            max-width: 900px;
+            perspective: 1500px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .art-card {
+            width: 100%;
+            height: 100%;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+            transition: box-shadow 0.5s ease, border 0.5s ease, transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Visual Side */
+        .card-visual {
+            flex: 1.3;
+            position: relative;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .card-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: filter 0.6s ease, transform 0.6s ease;
+            will-change: filter, transform;
+        }
+
+        /* Textures Overlay */
+        .card-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            mix-blend-mode: overlay;
+            transition: all 0.5s ease;
+        }
+
+        .vignette {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.8) 100%);
+            pointer-events: none;
+        }
+
+        /* Content Side */
+        .card-content {
+            flex: 0.7;
+            padding: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: rgba(30, 30, 32, 0.95);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+            z-index: 2;
+        }
+
+        .category-tag {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+        }
+        .category-tag::before {
+            content: ''; width: 20px; height: 1px; background: var(--primary-color); margin-right: 10px;
+        }
+
+        .title {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, #fff, #888);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tags {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 2rem;
+        }
+        .tag {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.05);
+            color: #aaa;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Actions */
+        .actions {
+            margin-top: auto;
+            display: flex; gap: 10px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: transparent;
+            color: #fff;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        .btn:hover { background: #fff; color: #000; }
+        .btn-primary { border-color: var(--primary-color); color: var(--primary-color); }
+        .btn-primary:hover { background: var(--primary-color); color: #fff; box-shadow: 0 0 15px var(--glow-color); }
+
+        /* Loading State */
+        .loader {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+        /* Responsive */
+        @media (max-width: 800px) {
+            .container { flex-direction: column; overflow-y: auto; }
+            aside { width: 100%; height: 250px; border-bottom: 1px solid #333; }
+            .art-card { flex-direction: column; }
+            .card-visual { height: 40%; }
+            .title { font-size: 1.5rem; }
+        }
+    </style>
+</head>
 <body>
+
+<header>
+    <h1>艺术风格 <span style="font-weight:300; opacity:0.5;">PRO</span></h1>
+<!--    <div class="subtitle">Interactive CSS Simulation Engine</div>-->
+</header>
+
+<div class="container">
+    <aside>
+        <div class="search-area">
+            <input type="text" class="input-search" id="searchInput" placeholder="搜索风格 / Search Styles...">
+        </div>
+        <div class="list-container" id="styleList"></div>
+    </aside>
+
     <main>
-      <section>
-        <a href="https://deno.com/deploy">
-        </a>
-      <h1>
-        <p>
-          Hello, Deno!
-        </p>
-      </h1>
-      <p>
-        This little example is being served by <a href="https://deno.com/">Deno</a>.
-        You can run it locally or in porduction on <a href="https://deno.com/deploy">Deno Deploy</a> or other hosting platforms.
-      </p>
-      <ul>
-        <li>Run it locally with<code>deno task dev</code></li>
-        <li>Deploy it to <a href="https://deno.com/deploy">Deno Deploy</a> via the CLI by running<code>deno deploy</code></li>
-        <li>Run it locally and share it publically by running <code>deno deploy --connected</code></li>
-      </ul>
-    </section>
-      <hr>
-    <section>
-      <h2>What's next?</h2>
-      <p>
-        You can clone this example and deploy it to Deno Deploy in just a few clicks
-        <a href="https://app.deno.com/new?clone=https://github.com/denoland/examples&path=hello-world"><img src="https://deno.com/button" alt="Deploy on Deno"/></a>
-      </p>
-      <ul>
-        <li>
-          <a href="https://docs.deno.com/examples">More examples in the Deno Docs</a>
-        </li>
-        <li>
-          <a href="https://deno.com/deploy">Deno Deploy Early Access</a>
-        </li>
-      </ul>
-    </section>
+        <canvas id="bg-canvas"></canvas>
+
+        <div class="card-stage">
+            <div class="art-card" id="artCard">
+                <div class="card-visual">
+                    <div class="loader" id="loader"></div>
+                    <img src="" alt="Art" class="card-image" id="cardImage">
+                    <div class="card-overlay" id="cardOverlay"></div>
+                    <div class="vignette"></div>
+                </div>
+                <div class="card-content">
+                    <div class="category-tag" id="catTag">Style</div>
+                    <h2 class="title" id="titleText">Select a Style</h2>
+                    <div class="tags" id="tagsList"></div>
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="app.copyPrompt()">复制提示词</button>
+                        <button class="btn" onclick="app.reroll()">切换随机图</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
-    <hr>
-    <footer>
-      <section>
-      <ul class="flex-btwn">
-        <li>
-          <a href="https://deno.com">BlueSky</a>
-        </li>
-        <li>
-          <a href="https://deno.com">Twitter</a>
-        </li>
-        <li>
-          <a href="https://deno.com">YouTube</a>
-        </li>
-        <li>
-          <a href="https://deno.com">Newsletter</a>
-        </li>
-        <li>
-          <a href="https://deno.com">Deno</a>
-        </li>
-      </ul>
-      </section>
-    </footer>
+</div>
+
+<script>
+    // --- 1. Data Source (The Complete List) ---
+    const rawData = `霍布马式逼真风格、逼真细节、生动纹理、颜色饱和、光影对比。
+米勒式浪漫风格、丰富情感、浓郁色彩、梦幻场景、感性表达。
+德加式印象主义风格、光影效果、活泼笔触、自然色调、日常生活场景。
+莫奈式印象主义风格、明亮色彩、宽松笔触、风景主题、光线变化。
+毕加索立体派风格、抽象形状、几何线条、大胆色彩、多视角构图。
+高更后印象派风格、原始艺术、鲜艳色彩、浓烈情感、悲观主题。
+凡·高后印象派风格、独特笔触、鲜明色彩、强烈情感、日常主题。
+米开朗基罗文艺复兴风格、人体雕塑、逼真肌肉、宗教主题、大气透视。
+塞尚后印象派风格、结构化笔触、色块划分、现实主题、自然光线。
+伦勃朗巴洛克风格、明暗对比、逼真质感、深沉色调、宗教和历史主题。
+克利姆特象征主义风格、金色装饰、几何图案、神秘主题、女性肖像。
+达利超现实主义风格、不可思议的图像、扭曲的形状、梦境场景、精细细节。
+米罗超现实主义风格、抽象符号、自由笔触、梦幻色彩、不可预测构图。
+埃舍尔数学艺术风格、不可能构图、光影对比、几何图案、无尽重复。
+波洛克抽象表现主义风格、无序涂鸦、混合颜色、自由流淌、大胆笔触。
+卡拉瓦乔巴洛克风格、戏剧性光影、现实主题、精细细节、富有情感。
+马蒂斯野兽派风格、纯净色彩、简化形状、浓烈情感、图案装饰。
+莱利昆士安风格、流线形状、光滑纹理、冷色调、科技感。
+纳什真实主义风格、光影透视、微妙色彩、准确线条、生活写照。
+赫尔曼尼德格式表现主义风格、饱和色彩、大胆笔触、情绪表达、社会主题。
+布拉克立体主义风格、几何切割、色块重组、平面感、抽象构图。
+纽曼极简主义风格、单一色彩、简洁线条、空间感、极简主题。
+塔皮斯非具象艺术风格、抽象形状、色彩激进、表达自由、内心情感。
+费尔尼奥未来主义风格、动态感、线条流畅、机械结构、科技未来。
+马基特达达主义风格、混杂元素、随机组合、色彩鲜明、反艺术表达。
+莫里斯颜色田园诗风格、浓烈色彩、线条简练、生活主题、艳丽画风。
+斯德哥尔摩新艺术风格、自然曲线、装饰性图案、柔和色彩、优美线条。
+蒙德里安去个人化风格、纯净色块、垂直横线、空白区域、极简形式。
+塔斯马尼亚野生艺术风格、野生元素、原始技巧、丰富质感、自然主题。
+草间弥生点彩主义风格、重复点彩、抽象构图、无尽扩散、精神探索。
+佩佩特鲁克金漆工风格、金色纹饰、细腻技法、历史主题、装饰性强。
+培根表现主义风格、畸形人像、油画质感、悲观情绪、现实生活。
+卡斯特兰德布鲁克风格、装饰性图案、富丽色彩、民族风格、几何形状。
+巴萨利茨基未来主义风格、动态构图、机械美学、速度元素、科技主题。
+草刈光平和风风格、和谐色彩、自然元素、日常主题、静谧情绪。
+柯洛斯乌克兰艺术风格、民族元素、传统技法、亮丽色彩、乡土主题。
+洛贝尔公主风格、可爱元素、温馨色彩、女性主题、梦幻场景。
+哈格斯塔姆印象派风格、轻快笔触、明亮色彩、光影效果、自然风景。
+莱特豪斯风格、线条几何、色块拼接、结构主义、建筑感。
+瓦拉多利德风格、丰富色彩、强烈表达、抽象主题、情感驱动。
+斯皮拉赫街头艺术风格、涂鸦元素、大胆色彩、文化评论、都市生活。
+科斯特纳西部风格、荒野景象、历史主题、细腻技法、真实再现。
+本尼迪科维奇概念艺术风格、理念传达、形式自由、文化批判、思想引导。
+埃姆斯设计风格、简洁线条、功能主义、色彩块面、现代美学。
+培根表现主义风格、扭曲人像、深沉色彩、情感表达、悲观主题。
+蒙克表现主义风格、强烈情感、鲜明色彩、悲观主题、简洁形状。
+塞尚立体主义风格、几何形状、色块对比、结构化画面、自然主题。
+丽特海滩风格、自然元素、宽松笔触、清新色彩、休闲主题。
+莱利地摊艺术风格、商业元素、文化反映、现代生活、色彩丰富。
+梵高后印象派风格、粗糙笔触、明亮色彩、情感表达、乡村风景。
+瓦萨雷利典型风格、原始质感、厚重颜色、传统符号、复古元素。
+霍克尼泳池风格、清新色彩、光影效果、平静水面、日常主题。
+伊斯特利大地艺术风格、自然元素、宏大尺度、环境互动、艺术与生活。
+马莱维奇超现实主义风格、空洞背景、几何形状、纯色对比、抽象概念。
+法贝尔鸟类插画风格、精细细节、自然主题、温暖色调、逼真质感。
+费德南德风格、大胆色彩、流动线条、浪漫主题、自由形式。
+列纳多达芬奇风格、精细线条、逼真光影、科学构图、人体艺术。
+哈特利非洲风格、抽象图形、原始纹理、文化元素、丰富色彩。
+布鲁克极简主义风格、简单线条、空白空间、色彩减少、形式主义。
+哈拉帕风格、历史文化、纹饰装饰、地域特色、原始感。
+李昌洙水墨风格、黑白色调、水墨流淌、山水主题、东方韵味。
+弗兰肯豪森风格、抽象形状、几何线条、富有节奏、光影效果。
+安迪沃霍尔流行艺术风格、商业图像、鲜艳色彩、名人肖像、社会讽刺。
+罗丹雕塑风格、人体塑形、情感表达、逼真质感、光影效果。
+安格尔古典主义风格、神话主题、人体美学、精细技法、理想化表达。
+弗洛伊德现实主义风格、现实主题、精致细节、冷淡色彩、个体生活。
+库宾斯基表现主义风格、抽象符号、鲜明色彩、音乐元素、内在情感。
+赫尔曼尼德格式表现主义风格、饱和色彩、大胆笔触、情绪表达、社会主题。
+基夫亚非洲风格、原始元素、几何图形、部落纹理、地域文化。
+罗斯科抽象表现主义风格、色块组合、情感表达、极简主义、深层思考。
+艾琳尼尔森抽象艺术风格、鲜明色彩、动态线条、感性元素、无边界创作。
+瓦洛塔恶搞风格、搞笑元素、插图式绘画、社会讽刺、大众文化。
+巴罗克风格、华丽装饰、戏剧性光影、宗教主题、感性表达。
+巴赫奇萨尔蒙浮世绘风格、日本元素、传统技艺、自然主题、细腻线条。
+杜利乌斯荷兰风格、日常生活、温暖色调、精细技法、静物绘画。
+普鲁斯特印象主义风格、光影变化、宽松笔触、日常生活、明亮色彩。
+西奥多·吉里考科洛风格、壮丽风景、宏大构图、浪漫主题、细腻技法。
+布拉德利艺术新艳风格、流线形状、装饰性图案、强烈色彩、优美线条。
+帕瓦洛瓦朝圣风格、神秘符号、宗教元素、深沉色彩、静谧氛围。
+罗丝金石头风格、自然纹理、石头元素、抽象构图、色彩对比。
+布劳恩工业风格、机械元素、冷色调、科技感、简洁线条。
+瓦西里·康定斯基抽象艺术风格、抽象形状、明亮色彩、音乐元素、内在情感。
+福斯特海滨风格、海洋元素、清新色彩、闲适氛围、自然光线。
+吉尔艾尔伊斯兰艺术风格、宗教元素、几何图案、装饰艺术、丰富色彩。
+麦科内尔大自然风格、自然景象、清新色彩、生态元素、细腻技法。
+皮卡索蓝色时期风格、单一色调、悲伤情绪、社会底层主题、实验形式。
+布莱克本野生动物风格、动物主题、逼真技法、自然环境、生动细节。
+洛佩兹墨西哥风格、文化元素、鲜艳色彩、民间艺术、社会主题。
+埃尔斯特大象风格、大象主题、可爱元素、温馨色彩、生活描绘。
+奥基夫花朵风格、花卉主题、自然元素、细腻技法、情感表达。
+费尔南德森黑人艺术风格、黑人文化、历史主题、丰富色彩、社会议题。
+马蒂斯野兽派风格、大胆色彩、狂野笔触、情绪表达、生活主题。
+卡洛塔大胆色彩风格、色彩搭配、抽象形式、生动线条、情感表达。
+埃克尔斯利梦幻风格、奇幻元素、梦境场景、超现实构图、想象力驱动。
+阿尔特豪斯风格、线条几何、色块拼接、结构主义、建筑感。
+哥雷图形风格、抽象符号、明亮色彩、几何元素、无意识表达。
+培根表现主义风格、扭曲形状、深沉色彩、情感表达、悲观主题。
+卡洛塔大胆色彩风格、色彩搭配、抽象形式、生动线条、情感表达。
+福勒人物描绘风格、人物肖像、细腻技法、情感表达、社会主题。
+希法洛人物风格、人物肖像、逼真技法、情感表达、社会主题。
+格雷格鲁特科夫斯基风格、厚涂技法、史诗感、奇幻光影、细节丰富。
+赛博朋克风格、霓虹灯光、高科技低生活、未来都市、暗黑美学。
+蒸汽朋克风格、黄铜齿轮、蒸汽烟雾、维多利亚时代、机械改造。
+合成波风格、紫色夕阳、复古网格线、80年代怀旧、霓虹渐变。
+像素艺术风格、8-bit、复古游戏、方块颗粒、怀旧色彩。
+哥特式风格、尖锐拱门、宗教神秘、阴郁色调、繁复装饰。
+新海诚动画风格、清新光影、唯美云层、细腻背景、治愈系。
+宫崎骏动画风格、手绘水彩、奇幻生物、自然风光、温暖色调。
+穆夏新艺术风格、女性柔美、植物藤蔓、装饰线条、淡雅色彩。
+低多边形风格、几何面、棱角分明、简洁光影、3D建模感。
+水彩画风格、水墨晕染、透明质感、柔和边缘、色彩流动。
+浮世绘风格、平面构图、大色块、海浪元素、线条流畅。
+故障艺术风格、画面撕裂、数据损坏、色彩失真、电子故障。
+极简主义摄影风格、大量留白、极简构图、单一色调、干净质感。
+黑白电影风格、颗粒噪点、高对比度、经典叙事、怀旧氛围。
+玻璃拟态风格、透明磨砂、背景模糊、轻盈质感、现代UI。
+酸性设计风格、高饱和度、液态金属、迷幻视觉、反主流。
+线稿插画风格、简洁线条、无上色、结构清晰、艺术涂鸦。
+双重曝光风格、轮廓融合、背景叠加、创意构图、黑白层次。
+暗黑神话风格、史诗场景、神秘符号、粗犷纹理、压迫感。
+日式和风风格、樱花元素、传统纹样、淡雅配色、自然材质。
+美式漫画风格、粗线条描边、网点纸、夸张透视、彩色印刷。
+中国工笔画风格、精细线条、色彩层层渲染、写实花鸟、古典韵味。`;
+
+    // --- 2. The Engine Class ---
+    class ArtEngine {
+        constructor() {
+            this.styles = this.parseData(rawData);
+            this.currentStyle = null;
+            this.imageSeed = 'init';
+
+            // Texture Assets (Base64 SVG)
+            this.textures = {
+                noise: "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJnoiPjxmZVR1cmJ1bGVuY2UgdHlwZT0iZnJhY3RhbE5vaXNlIiBiYXNlRnJlcXVlbmN5PSIwLjY1IiBudW1PY3RhdmVzPSIzIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI2cpIiBvcGFjaXR5PSIwLjQiLz48L3N2Zz4=')",
+                scanlines: "linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))",
+                grid: "linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px)",
+                halftone: "radial-gradient(circle, #000 20%, transparent 20.5%)"
+            };
+
+            // Configuration Recipes
+            this.recipes = {
+                cyber: { keys: ['赛博', '霓虹', '未来'], theme: '#00e5ff', filters: 'saturate(2.5) contrast(1.4) brightness(1.2) drop-shadow(0 0 4px var(--theme))', texture: this.textures.scanlines, border: '1px solid #00e5ff' },
+                vaporwave: { keys: ['合成波', '80'], theme: '#ff71ce', filters: 'saturate(2) hue-rotate(-20deg) contrast(1.2)', texture: 'linear-gradient(45deg, rgba(255,0,255,0.1), rgba(0,255,255,0.1))', border: '3px solid #ff71ce' },
+                pixel: { keys: ['像素', '8-bit'], theme: '#76ff03', filters: 'contrast(1.3) saturate(1.1)', texture: 'linear-gradient(rgba(0,0,0,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.3) 1px, transparent 1px)', border: '4px solid #76ff03', pixelate: true },
+                steam: { keys: ['蒸汽', '迷雾'], theme: '#d7ccc8', filters: 'sepia(0.6) contrast(1.2) brightness(0.9)', texture: this.textures.noise, border: '2px solid #5d4037' },
+                gothic: { keys: ['哥特', '暗黑'], theme: '#880e4f', filters: 'brightness(0.5) contrast(1.5) saturate(0.5)', texture: 'radial-gradient(circle, transparent 40%, #000 100%)', border: '2px solid #880e4f' },
+                pop: { keys: ['波普', '印刷'], theme: '#ffeb3b', filters: 'contrast(1.8) saturate(1.8)', texture: this.textures.halftone, border: '4px solid #ffeb3b' },
+                sketch: { keys: ['素描', '线稿'], theme: '#ffffff', filters: 'grayscale(1) contrast(200%) brightness(0.8)', texture: 'none', border: '2px solid #fff' },
+                watercolor: { keys: ['水彩', '晕染', '新海诚'], theme: '#f8bbd0', filters: 'contrast(0.8) brightness(1.1) saturate(0.9) blur(0.5px)', texture: 'none', border: '1px solid #f8bbd0' },
+                ghibli: { keys: ['宫崎骏', '治愈'], theme: '#81c784', filters: 'saturate(1.4) brightness(1.1) contrast(0.9)', texture: 'none', border: '1px solid #81c784' },
+                retro: { keys: ['复古', '胶片', '电影'], theme: '#ffab91', filters: 'sepia(0.4) contrast(1.1)', texture: this.textures.noise, border: '1px solid #ffab91' },
+                minimal: { keys: ['极简', '留白'], theme: '#bdbdbd', filters: 'grayscale(0.5) contrast(0.8) brightness(1.2)', texture: 'none', border: 'none' },
+                acid: { keys: ['酸性', '迷幻', '液态'], theme: '#00ff9d', filters: 'saturate(3) hue-rotate(45deg) contrast(1.5) invert(0.1)', texture: 'linear-gradient(135deg, #00ff9d22, transparent)', border: '2px solid #00ff9d' },
+                glitch: { keys: ['故障', '撕裂'], theme: '#ff0000', filters: 'contrast(2) hue-rotate(90deg) saturate(2) blur(0.5px)', texture: 'linear-gradient(90deg, transparent 50%, rgba(255,0,0,0.2) 50%)', border: 'none' },
+                ink: { keys: ['水墨', '东方', '和风'], theme: '#b2dfdb', filters: 'grayscale(0.2) contrast(1.2) brightness(0.9)', texture: 'none', border: 'none' },
+                abstract: { keys: ['抽象', '立体', '几何'], theme: '#ff5722', filters: 'hue-rotate(90deg) contrast(1.5)', texture: 'linear-gradient(45deg, rgba(255,255,255,0.1), transparent)', border: '1px dashed #ff5722' },
+                glass: { keys: ['玻璃', '磨砂'], theme: '#81d4fa', filters: 'brightness(1.2) contrast(0.9)', texture: 'none', border: '1px solid rgba(255,255,255,0.3)' },
+            };
+
+            this.init();
+        }
+
+        parseData(str) {
+            return str.split('\n').filter(l => l.trim()).map(line => {
+                const parts = line.split('、');
+                return {
+                    name: parts[0].trim(),
+                    tags: parts.slice(1).map(t => t.trim().replace('。', ''))
+                };
+            });
+        }
+
+        init() {
+            this.renderList(this.styles);
+            this.loadStyle(this.styles[0]);
+            this.setupEvents();
+            this.initParticles();
+        }
+
+        setupEvents() {
+            const input = document.getElementById('searchInput');
+            input.addEventListener('input', (e) => {
+                const val = e.target.value.toLowerCase();
+                const filtered = this.styles.filter(s =>
+                    s.name.toLowerCase().includes(val) ||
+                    s.tags.some(t => t.toLowerCase().includes(val))
+                );
+                this.renderList(filtered);
+            });
+        }
+
+        renderList(data) {
+            const list = document.getElementById('styleList');
+            list.innerHTML = '';
+            data.forEach(style => {
+                const li = document.createElement('div');
+                li.className = 'style-item';
+                li.textContent = style.name;
+                if (this.currentStyle && style.name === this.currentStyle.name) li.classList.add('active');
+
+                li.onclick = () => {
+                    document.querySelectorAll('.style-item').forEach(el => el.classList.remove('active'));
+                    li.classList.add('active');
+                    this.loadStyle(style);
+                };
+                list.appendChild(li);
+            });
+        }
+
+        loadStyle(style) {
+            this.currentStyle = style;
+
+            // UI Updates
+            document.getElementById('catTag').textContent = style.tags[0] || 'Style';
+            document.getElementById('titleText').textContent = style.name;
+            document.getElementById('tagsList').innerHTML = style.tags.map(t => `<span class="tag">${t}</span>`).join('');
+
+            // Simulation
+            this.applySimulation(style.tags);
+
+            // Image Load
+            this.updateImage();
+        }
+
+        updateImage() {
+            const img = document.getElementById('cardImage');
+            const loader = document.getElementById('loader');
+
+            loader.style.display = 'block';
+            img.style.opacity = '0.3'; // Dim old image
+
+            const seed = this.currentStyle.name.split('').reduce((a,c) => a + c.charCodeAt(0), 0) + this.imageSeed;
+
+            // Create a new image object to handle loading
+            const newImg = new Image();
+            newImg.src = `https://picsum.photos/seed/${seed}/800/600.jpg`;
+            newImg.onload = () => {
+                img.src = newImg.src;
+                img.style.opacity = '1';
+                loader.style.display = 'none';
+            };
+        }
+
+        reroll() {
+            this.imageSeed = Math.random().toString(36).substring(7);
+            this.updateImage();
+        }
+
+        copyPrompt() {
+            const text = `${this.currentStyle.name}，${this.currentStyle.tags.join('、')}`;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.querySelector('.btn-primary');
+                const orig = btn.textContent;
+                btn.textContent = "已复制";
+                setTimeout(() => btn.textContent = orig, 1500);
+            });
+        }
+
+        // --- Core Simulation Logic ---
+        applySimulation(tags) {
+            const allTags = tags.join(' ');
+            const root = document.documentElement;
+            const card = document.getElementById('artCard');
+            const overlay = document.getElementById('cardOverlay');
+            const img = document.getElementById('cardImage');
+
+            // Default Values
+            let config = {
+                theme: '#888',
+                filters: 'none',
+                texture: 'none',
+                border: '1px solid rgba(255,255,255,0.05)',
+                transform: 'none',
+                pixelate: false
+            };
+
+            // Find matching recipe
+            for (const key in this.recipes) {
+                if (this.recipes[key].keys.some(k => allTags.includes(k))) {
+                    config = { ...config, ...this.recipes[key] };
+                    break; // Use first match priority
+                }
+            }
+
+            // Apply Theme
+            root.style.setProperty('--primary-color', config.theme);
+            root.style.setProperty('--glow-color', config.theme + '4D'); // 30% opacity
+
+            // Apply Filters
+            img.style.filter = config.filters;
+
+            // Apply Texture
+            if (config.texture === 'none') {
+                overlay.style.background = 'none';
+            } else {
+                overlay.style.background = config.texture;
+                overlay.style.backgroundSize = 'cover';
+            }
+
+            // Apply Borders
+            card.style.border = config.border;
+
+            // Apply Transform (Rotation/Perspective)
+            let rotateX = 0, rotateY = 0;
+            if (allTags.includes('抽象') || allTags.includes('立体') || allTags.includes('故障')) {
+                rotateX = (Math.random() * 6 - 3);
+                rotateY = (Math.random() * 6 - 3);
+            }
+            if (config.pixelate) {
+                img.style.imageRendering = 'pixelated';
+                rotateX = 0; rotateY = 0; // Keep straight for pixel art
+            } else {
+                img.style.imageRendering = 'auto';
+            }
+
+            if (rotateX !== 0 || rotateY !== 0) {
+                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            } else {
+                card.style.transform = `none`;
+            }
+        }
+
+        initParticles() {
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            let width, height, particles = [];
+
+            const resize = () => {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            };
+            window.addEventListener('resize', resize);
+            resize();
+
+            for(let i=0; i<500; i++) particles.push({
+                x: Math.random()*width, y: Math.random()*height,
+                vx: (Math.random()-0.5)*0.5, vy: (Math.random()-0.5)*0.5,
+                size: Math.random()*2, alpha: Math.random()
+            });
+
+            const animate = () => {
+                ctx.clearRect(0,0,width,height);
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
+
+                particles.forEach(p => {
+                    p.x += p.vx; p.y += p.vy;
+                    if(p.x<0) p.x=width; if(p.x>width) p.x=0;
+                    if(p.y<0) p.y=height; if(p.y>height) p.y=0;
+                    ctx.globalAlpha = p.alpha * 0.3;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                });
+                requestAnimationFrame(animate);
+            };
+            animate();
+        }
+    }
+
+    // --- Run App ---
+    const app = new ArtEngine();
+</script>
 </body>
 </html>
